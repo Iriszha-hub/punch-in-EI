@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>电子信息科学与技术 · 课堂打卡</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #ffffff; color: #333333; font-family: -apple-system, 'Helvetica Neue', 'PingFang SC', 'Microsoft YaHei', sans-serif; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 60px 24px; letter-spacing: 0.5px; }
+  .tag { font-size: 12px; color: #999999; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 16px; }
+  h1 { font-size: 48px; font-weight: 300; letter-spacing: 8px; margin-bottom: 12px; text-align: center; line-height: 1.2; color: #222222; }
+  .date { font-size: 14px; color: #888888; letter-spacing: 2px; margin-bottom: 48px; }
+  .status { font-size: 13px; letter-spacing: 1px; margin-bottom: 40px; padding: 10px 24px; border-radius: 100px; border: 1px solid #eeeeee; background: #fafafa; }
+  .status.ok { color: #7b9e6b; border-color: #d4e2c6; background: #f1f6eb; }
+  .status.no { color: #c97b7b; border-color: #f0d0d0; background: #fdf2f2; }
+  .card { background: #ffffff; border: 1px solid #f0f0f0; border-radius: 24px; padding: 48px 40px; width: 100%; max-width: 460px; box-shadow: 0 10px 40px rgba(0,0,0,0.03); }
+  select { width: 100%; padding: 16px 20px; background: #fafafa; color: #333; border: 1px solid #eeeeee; border-radius: 12px; font-size: 15px; letter-spacing: 1px; margin-bottom: 28px; outline: none; appearance: none; cursor: pointer; transition: all 0.3s; }
+  select:focus { border-color: #f5c6c3; background: #ffffff; }
+  .btn-row { display: flex; gap: 16px; }
+  .btn { flex: 1; padding: 24px 12px; border: 1px solid transparent; border-radius: 18px; font-size: 15px; letter-spacing: 2px; cursor: pointer; transition: all 0.3s ease; font-weight: 500; }
+  .btn-first { background: #f0a8a0; color: #6a1a1a; border-color: #e09088; }
+  .btn-first:hover:not(:disabled) { background: #e89890; transform: translateY(-2px); box-shadow: 0 6px 16px rgba(106,26,26,0.15); }
+  .btn-first.done { background: #b8d4a8; color: #1a4a1a; border-color: #a0c490; }
+  .btn-answer { background: #f5d78e; color: #6a5a1a; border-color: #e8c878; }
+  .btn-answer:hover:not(:disabled) { background: #e8c878; transform: translateY(-2px); box-shadow: 0 6px 16px rgba(106,90,26,0.15); }
+  .btn:disabled { background: #f7f7f7; color: #cccccc; border-color: #f0f0f0; cursor: not-allowed; transform: none !important; }
+  .num-row { display: flex; gap: 14px; margin-top: 24px; flex-wrap: wrap; justify-content: center; }
+  .num-btn { width: 64px; height: 64px; border-radius: 20px; border: none; font-size: 22px; font-weight: 700; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
+  .num-btn:hover { transform: scale(1.1); box-shadow: 0 8px 20px rgba(0,0,0,0.12); }
+  .n1 { background: #FFF4C2 !important; color: #8a7a2a !important; }
+  .n2 { background: #D6EDFF !important; color: #2a5a8a !important; }
+  .n3 { background: #FFD6D6 !important; color: #8a3a3a !important; }
+  .n4 { background: #D9F2D9 !important; color: #3a7a3a !important; }
+  .n5 { background: #FFE4C2 !important; color: #8a5a2a !important; }
+  .msg { margin-top: 24px; text-align: center; font-size: 14px; letter-spacing: 1px; min-height: 24px; color: #888888; }
+  .msg.success { color: #7b9e6b; }
+  .msg.error { color: #c97b7b; }
+  .count-box { margin-top: 16px; text-align: center; font-size: 13px; color: #999; letter-spacing: 1px; }
+  .count-box span { color: #8a7a4a; font-weight: 600; }
+  .stats-link { margin-top: 48px; color: #bbbbbb; cursor: pointer; font-size: 12px; letter-spacing: 2px; transition: color 0.3s; }
+  .stats-link:hover { color: #666666; }
+  .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.95); z-index: 100; justify-content: center; align-items: center; padding: 20px; }
+  .modal.show { display: flex; }
+  .modal-box { background: #ffffff; border: 1px solid #f0f0f0; border-radius: 24px; padding: 48px; width: 100%; max-width: 560px; max-height: 80vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.08); text-align: center; }
+  .modal-box h2 { font-size: 20px; font-weight: 400; letter-spacing: 4px; margin-bottom: 8px; color: #333; }
+  .modal-box .tip { font-size: 13px; color: #c97b7b; letter-spacing: 1px; margin-bottom: 20px; }
+  .modal-box input { width: 100%; padding: 16px 20px; background: #fafafa; color: #333; border: 1px solid #eeeeee; border-radius: 12px; margin-bottom: 20px; font-size: 15px; outline: none; transition: all 0.3s; }
+  .modal-box input:focus { border-color: #f5c6c3; background: #fff; }
+  .modal-box button { padding: 14px 32px; background: #f0a8a0; color: #6a1a1a; border: none; border-radius: 12px; font-size: 14px; letter-spacing: 2px; cursor: pointer; margin-right: 10px; transition: all 0.3s; }
+  .modal-box button:hover { background: #e89890; }
+  .modal-box button.cancel { background: #f0f0f0; color: #888; }
+  .modal-box button.cancel:hover { background: #e0e0e0; color: #333; }
+  table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+  th, td { padding: 18px 12px; border-bottom: 1px solid #f5f5f5; text-align: left; font-size: 14px; font-weight: 400; letter-spacing: 1px; }
+  th { color: #999999; font-size: 12px; letter-spacing: 2px; border-bottom: 1px solid #eeeeee; }
+  .total { color: #6a1a1a; font-weight: 600; }
+  .close { float: right; color: #cccccc; cursor: pointer; font-size: 24px; line-height: 1; transition: color 0.3s; }
+  .close:hover { color: #666; }
+</style>
+</head>
+<body>
+
+<div class="tag">Electronic Information</div>
+<h1>课堂打卡</h1>
+<div class="date" id="today"></div>
+<div class="status" id="status"></div>
+
+<div class="card">
+  <select id="nameSelect" onchange="updateCount()">
+    <option value="">— 请选择学号 / 姓名 —</option>
+    <option value="080226001 卞荣康">080226001 卞荣康</option>
+    <option value="080226002 王欣妍">080226002 王欣妍</option>
+    <option value="080226003 王祜宁">080226003 王祜宁</option>
+    <option value="080226004 王朝林">080226004 王朝林</option>
+    <option value="080226005 王舒婷">080226005 王舒婷</option>
+    <option value="080226006 史翌霏">080226006 史翌霏</option>
+    <option value="080226007 田冰鑫">080226007 田冰鑫</option>
+    <option value="080226008 刘俊杭">080226008 刘俊杭</option>
+    <option value="080226009 孙小蝶">080226009 孙小蝶</option>
+    <option value="080226010 庄滟琦">080226010 庄滟琦</option>
+    <option value="080226011 朱海明">080226011 朱海明</option>
+    <option value="080226012 朱逸繁">080226012 朱逸繁</option>
+    <option value="080226013 何佳胜">080226013 何佳胜</option>
+    <option value="080226014 张恒瑞">080226014 张恒瑞</option>
+    <option value="080226015 肖俊杰">080226015 肖俊杰</option>
+    <option value="080226016 李依婷">080226016 李依婷</option>
+    <option value="080226017 杜思彤">080226017 杜思彤</option>
+    <option value="080226018 束沁源">080226018 束沁源</option>
+    <option value="080226019 杨新悦">080226019 杨新悦</option>
+    <option value="080226020 汪冬冬">080226020 汪冬冬</option>
+    <option value="080226021 周佐璟">080226021 周佐璟</option>
+    <option value="080226022 周锶">080226022 周锶</option>
+    <option value="080226023 罗智">080226023 罗智</option>
+    <option value="080226024 郑浩雨">080226024 郑浩雨</option>
+    <option value="080226025 金智豪">080226025 金智豪</option>
+    <option value="080226026 段雯婷">080226026 段雯婷</option>
+    <option value="080226027 祝远康">080226027 祝远康</option>
+    <option value="080226028 赵宇恒">080226028 赵宇恒</option>
+    <option value="080226029 唐榆">080226029 唐榆</option>
+    <option value="080226030 徐艺心">080226030 徐艺心</option>
+    <option value="080226031 秦思颖">080226031 秦思颖</option>
+    <option value="080226032 顾长进">080226032 顾长进</option>
+    <option value="080226033 曹天泽">080226033 曹天泽</option>
+    <option value="080226034 龚伟雄">080226034 龚伟雄</option>
+    <option value="080226035 黄世源">080226035 黄世源</option>
+    <option value="080226036 黄欣">080226036 黄欣</option>
+    <option value="080226037 傅照燃">080226037 傅照燃</option>
+    <option value="080226038 葛余慧">080226038 葛余慧</option>
+    <option value="080226039 蒋步云">080226039 蒋步云</option>
+    <option value="080226040 鲍俊杰">080226040 鲍俊杰</option>
+    <option value="080226041 谭森">080226041 谭森</option>
+  </select>
+
+  <div class="btn-row">
+    <button class="btn btn-first" id="btnFirst" onclick="checkIn('坐第一排')">坐第一排</button>
+    <button class="btn btn-answer" id="btnAnswer" onclick="openNumModal()">主动回答</button>
+  </div>
+
+  <div class="count-box" id="countBox"></div>
+  <div class="msg" id="msg"></div>
+</div>
+
+<div class="stats-link" onclick="openStats()">查看统计 →</div>
+
+<div class="modal" id="numModal">
+  <div class="modal-box">
+    <span class="close" onclick="closeNumModal()">×</span>
+    <h2>本次回答次数</h2>
+    <div class="tip">⚠️ 只能选择一次，选错不可修改</div>
+    <div class="num-row">
+      <button class="num-btn n1" onclick="recordAnswer(1)">1</button>
+      <button class="num-btn n2" onclick="recordAnswer(2)">2</button>
+      <button class="num-btn n3" onclick="recordAnswer(3)">3</button>
+      <button class="num-btn n4" onclick="recordAnswer(4)">4</button>
+      <button class="num-btn n5" onclick="recordAnswer(5)">5</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="pwdModal">
+  <div class="modal-box">
+    <span class="close" onclick="closePwd()">×</span>
+    <h2>教师入口</h2>
+    <input type="password" id="pwdInput" placeholder="请输入密码">
+    <button onclick="checkPwd()">进入</button>
+    <button class="cancel" onclick="closePwd()">取消</button>
+  </div>
+</div>
+
+<div class="modal" id="statsModal">
+  <div class="modal-box" style="text-align:left;">
+    <span class="close" onclick="closeStats()">×</span>
+    <h2>打卡统计</h2>
+    <div id="statsContent"></div>
+    <button onclick="exportCSV()" style="margin-top:24px;">导出 CSV</button>
+  </div>
+</div>
+
+<script>
+  const SUPABASE_URL = 'https://nndkbxfpqdukwvbloifi.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_tI-IuM5-96-HHCmDdn87EQ_-6_R2kef';
+  const CLASS_NAME = '电子信息';
+
+  const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  const now = new Date();
+  const TODAY = now.toISOString().split('T')[0];
+  const todayWeekday = now.getDay() === 0 ? 7 : now.getDay();
+
+  document.getElementById('today').textContent = now.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
+
+  function canCheckIn() {
+    if (TODAY < '2026-09-28' || TODAY > '2026-12-31') return { ok: false, reason: '不在本学期打卡范围内' };
+    if (['2026-10-01','2026-10-02','2026-10-03','2026-10-04','2026-10-05','2026-10-06','2026-10-07'].includes(TODAY)) return { ok: false, reason: '今天为假期，无法打卡' };
+    if (![2, 4].includes(todayWeekday)) return { ok: false, reason: '今天不是本班上课日' };
+    return { ok: true };
+  }
+
+  const check = canCheckIn();
+  const statusEl = document.getElementById('status');
+  if (!check.ok) {
+    statusEl.textContent = check.reason;
+    statusEl.className = 'status no';
+    document.getElementById('btnFirst').disabled = true;
+    document.getElementById('btnAnswer').disabled = true;
+  } else {
+    statusEl.textContent = '今日可打卡';
+    statusEl.className = 'status ok';
+  }
+
+  function parseName(val) {
+    const parts = val.split(' ');
+    return { student_id: parts[0], student_name: parts[1] };
+  }
+
+  async function updateCount() {
+    const val = document.getElementById('nameSelect').value;
+    const box = document.getElementById('countBox');
+    if (!val) { box.innerHTML = ''; return; }
+    const { student_id } = parseName(val);
+
+    const { data, error } = await supabaseClient
+      .from('checkin_records')
+      .select('*')
+      .eq('class_name', CLASS_NAME)
+      .eq('student_id', student_id)
+      .eq('record_date', TODAY);
+
+    if (error) { box.innerHTML = ''; return; }
+
+    let first = 0, answer = 0;
+    data.forEach(r => {
+      if (r.item === '坐第一排') first += r.count;
+      if (r.item === '主动回答') answer += r.count;
+    });
+    box.innerHTML = `今日已记录：坐第一排 <span>${first}</span> 次 · 主动回答 <span>${answer}</span> 次`;
+
+    const btnFirst = document.getElementById('btnFirst');
+    if (first >= 1) { btnFirst.classList.add('done'); btnFirst.textContent = '坐第一排 ✅'; }
+    else { btnFirst.classList.remove('done'); btnFirst.textContent = '坐第一排'; }
+  }
+
+  async function checkIn(type) {
+    if (!check.ok) return;
+    const val = document.getElementById('nameSelect').value;
+    const msg = document.getElementById('msg');
+    if (!val) { msg.textContent = '请先选择学号 / 姓名'; msg.className = 'msg error'; return; }
+    const { student_id, student_name } = parseName(val);
+
+    const { data: existing } = await supabaseClient
+      .from('checkin_records')
+      .select('*')
+      .eq('class_name', CLASS_NAME)
+      .eq('student_id', student_id)
+      .eq('item', type)
+      .eq('record_date', TODAY);
+
+    if (existing && existing.length > 0) {
+      msg.textContent = '今日已打卡此事项，不可修改';
+      msg.className = 'msg error';
+      return;
+    }
+
+    const { error } = await supabaseClient.from('checkin_records').insert({
+      class_name: CLASS_NAME,
+      student_id: student_id,
+      student_name: student_name,
+      item: type,
+      count: 1,
+      record_date: TODAY
+    });
+
+    if (error) {
+      msg.textContent = '网络错误，请重试';
+      msg.className = 'msg error';
+      return;
+    }
+
+    msg.textContent = '✅ ' + type + ' 已记录 · ' + student_name;
+    msg.className = 'msg success';
+    updateCount();
+  }
+
+  function openNumModal() {
+    if (!check.ok) return;
+    const val = document.getElementById('nameSelect').value;
+    const msg = document.getElementById('msg');
+    if (!val) { msg.textContent = '请先选择学号 / 姓名'; msg.className = 'msg error'; return; }
+    document.getElementById('numModal').classList.add('show');
+  }
+  function closeNumModal() { document.getElementById('numModal').classList.remove('show'); }
+
+  async function recordAnswer(n) {
+    const val = document.getElementById('nameSelect').value;
+    const msg = document.getElementById('msg');
+    const { student_id, student_name } = parseName(val);
+
+    const { data: existing } = await supabaseClient
+      .from('checkin_records')
+      .select('*')
+      .eq('class_name', CLASS_NAME)
+      .eq('student_id', student_id)
+      .eq('item', '主动回答')
+      .eq('record_date', TODAY);
+
+    let current = 0;
+    (existing || []).forEach(r => current += r.count);
+
+    if (current + n > 5) {
+      msg.textContent = '今日主动回答累计超过5次（当前' + current + '次）';
+      msg.className = 'msg error';
+      closeNumModal();
+      return;
+    }
+
+    const { error } = await supabaseClient.from('checkin_records').insert({
+      class_name: CLASS_NAME,
+      student_id: student_id,
+      student_name: student_name,
+      item: '主动回答',
+      count: n,
+      record_date: TODAY
+    });
+
+    if (error) {
+      msg.textContent = '网络错误，请重试';
+      msg.className = 'msg error';
+      closeNumModal();
+      return;
+    }
+
+    closeNumModal();
+    msg.textContent = '✅ 主动回答 ' + n + ' 次已记录 · ' + student_name;
+    msg.className = 'msg success';
+    updateCount();
+  }
+
+  function openStats() {
+    if (localStorage.getItem('isTeacher') === 'yes') { showStats(); return; }
+    document.getElementById('pwdModal').classList.add('show');
+  }
+  function closePwd() { document.getElementById('pwdModal').classList.remove('show'); }
+  function checkPwd() {
+    if (document.getElementById('pwdInput').value === '888888') {
+      localStorage.setItem('isTeacher', 'yes');
+      closePwd();
+      showStats();
+    } else alert('密码错误');
+  }
+
+  async function showStats() {
+    const { data, error } = await supabaseClient
+      .from('checkin_records')
+      .select('*')
+      .eq('class_name', CLASS_NAME);
+
+    if (error) {
+      document.getElementById('statsContent').innerHTML = '<p style="color:#c97b7b;">读取数据失败，请检查网络</p>';
+      document.getElementById('statsModal').classList.add('show');
+      return;
+    }
+
+    const stats = {};
+    data.forEach(r => {
+      const key = r.student_id + ' ' + r.student_name;
+      if (!stats[key]) stats[key] = { 坐第一排: 0, 主动回答: 0 };
+      stats[key][r.item] += r.count;
+    });
+
+    const names = Object.keys(stats).sort((a,b) => {
+      const ta = stats[a].坐第一排 + stats[a].主动回答;
+      const tb = stats[b].坐第一排 + stats[b].主动回答;
+      return tb - ta;
+    });
+
+    let html = '<table><tr><th>学号 / 姓名</th><th>坐第一排</th><th>主动回答</th><th>总次数</th></tr>';
+    names.forEach(n => {
+      const s = stats[n];
+      const total = s.坐第一排 + s.主动回答;
+      html += `<tr><td>${n}</td><td>${s.坐第一排}</td><td>${s.主动回答}</td><td class="total">${total}</td></tr>`;
+    });
+    html += '</table>';
+    if (names.length === 0) html = '<p style="color:#888;font-size:14px;">暂无打卡记录</p>';
+    document.getElementById('statsContent').innerHTML = html;
+    document.getElementById('statsModal').classList.add('show');
+  }
+  function closeStats() { document.getElementById('statsModal').classList.remove('show'); }
+
+  async function exportCSV() {
+    const { data, error } = await supabaseClient
+      .from('checkin_records')
+      .select('*')
+      .eq('class_name', CLASS_NAME);
+
+    if (error) { alert('导出失败，请检查网络'); return; }
+
+    let csv = '日期,学号,姓名,事项,次数,记录时间\n';
+    data.forEach(r => {
+      csv += `${r.record_date},${r.student_id},${r.student_name},${r.item},${r.count},${r.created_at}\n`;
+    });
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = '电子信息_打卡记录.csv';
+    link.click();
+  }
+</script>
+</body>
+</html>
